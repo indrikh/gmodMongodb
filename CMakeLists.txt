@@ -1,0 +1,42 @@
+cmake_minimum_required(VERSION 3.5)
+project(gmodmongodb)
+add_subdirectory(GmodLUA)
+
+file(GLOB_RECURSE GMODMONGODB_SRC "src/*.h" "src/*.cpp")
+set(SOURCE_FILES ${GMODMONGODB_SRC})
+set(CMAKE_BUILD_TYPE RelWithDebInfo)
+set(CMAKE_CXX_STANDARD 14)
+
+add_library(gmodmongodb SHARED ${SOURCE_FILES})
+target_link_libraries(gmodmongodb gmod-module-base)
+
+# Указываем пути к MongoDB C++ Driver
+target_include_directories(gmodmongodb PRIVATE MongoDB/include)
+
+if (CMAKE_SIZEOF_VOID_P EQUAL 8)
+    if (WIN32)
+        find_library(MONGOCXX_LIB mongocxx HINTS "${PROJECT_SOURCE_DIR}/MongoDB/lib64/windows")
+        find_library(BSONCXX_LIB bsoncxx HINTS "${PROJECT_SOURCE_DIR}/MongoDB/lib64/windows")
+    else ()
+        find_library(MONGOCXX_LIB mongocxx HINTS "${PROJECT_SOURCE_DIR}/MongoDB/lib64/linux")
+        find_library(BSONCXX_LIB bsoncxx HINTS "${PROJECT_SOURCE_DIR}/MongoDB/lib64/linux")
+    endif ()
+elseif (CMAKE_SIZEOF_VOID_P EQUAL 4)
+    if (WIN32)
+        find_library(MONGOCXX_LIB mongocxx HINTS "${PROJECT_SOURCE_DIR}/MongoDB/lib/windows")
+        find_library(BSONCXX_LIB bsoncxx HINTS "${PROJECT_SOURCE_DIR}/MongoDB/lib/windows")
+    else ()
+        find_library(MONGOCXX_LIB mongocxx HINTS "${PROJECT_SOURCE_DIR}/MongoDB/lib/linux")
+        find_library(BSONCXX_LIB bsoncxx HINTS "${PROJECT_SOURCE_DIR}/MongoDB/lib/linux")
+    endif ()
+endif ()
+
+if (WIN32)
+    target_link_libraries(gmodmongodb ${MONGOCXX_LIB} ${BSONCXX_LIB} ws2_32)
+else ()
+    find_package(Threads REQUIRED)
+    target_link_libraries(gmodmongodb ${MONGOCXX_LIB} ${BSONCXX_LIB} Threads::Threads ${CMAKE_DL_LIBS})
+    target_link_libraries(gmodmongodb -static-libstdc++)
+endif ()
+
+set_gmod_suffix_prefix(gmodmongodb)
