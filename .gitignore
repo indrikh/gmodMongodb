@@ -1,0 +1,31 @@
+# Игнорируем скомпилированные файлы
+*.o
+*.obj
+*.so
+*.dll
+*.dylib
+*.a
+*.lib
+*.cmake
+
+# Игнорируем каталоги сборки
+build/
+bin/
+lib/
+
+# Игнорируем временные файлы IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# MongoDB библиотеки (могут быть большими, их добавить позже)
+MongoDB/
+
+# CMake
+CMakeCache.txt
+CMakeFiles/
+CMakeScripts/
+Testing/
+Makefile
