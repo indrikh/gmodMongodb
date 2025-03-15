@@ -5,7 +5,7 @@ on:
     branches: [ main ]
   pull_request:
     branches: [ main ]
-  workflow_dispatch:  # Позволяет запускать workflow вручную
+  workflow_dispatch:
 
 jobs:
   build-linux:
@@ -30,7 +30,6 @@ jobs:
           libzstd-dev \
           pkg-config
 
-        # Для 32-битной сборки
         if [ "${{ matrix.arch }}" = "32" ]; then
           sudo dpkg --add-architecture i386
           sudo apt-get update
@@ -45,15 +44,12 @@ jobs:
     
     - name: Download and build MongoDB C Driver
       run: |
-        # Устанавливаем MongoDB C Driver
         curl -L -O https://github.com/mongodb/mongo-c-driver/releases/download/1.23.1/mongo-c-driver-1.23.1.tar.gz
         tar xzf mongo-c-driver-1.23.1.tar.gz
         cd mongo-c-driver-1.23.1
 
-        # Отключаем проблемную загрузку криптографических компонентов
         sed -i 's/get-crypt_shared//' CMakeLists.txt
         
-        # Параметры для 32/64-битной сборки
         BUILD_FLAGS=""
         INSTALL_DIR="${GITHUB_WORKSPACE}/mongo-c-install"
         if [ "${{ matrix.arch }}" = "32" ]; then
@@ -83,19 +79,21 @@ jobs:
     
     - name: Download and build MongoDB C++ Driver
       run: |
-        # Устанавливаем MongoDB C++ Driver
-        curl -L -O https://github.com/mongodb/mongo-cxx-driver/archive/refs/tags/r3.6.7.tar.gz
-        tar xzf r3.6.7.tar.gz
-        cd mongo-cxx-driver-r3.6.7
+        curl -L -O https://github.com/mongodb/mongo-cxx-driver/archive/refs/tags/r3.7.0.tar.gz
+        tar xzf r3.7.0.tar.gz
+        cd mongo-cxx-driver-r3.7.0
         
-        # Удаляем проблемные файлы тестов и mock-объектов
-        rm -rf src/mongocxx/test src/bsoncxx/test src/mongocxx/mocked
+        # Удаляем проблемные директории и файлы
+        rm -rf src/mongocxx/test src/bsoncxx/test
+        
+        # Правим CMakeLists.txt для удаления проблемной директории test
+        sed -i '/add_subdirectory(test)/d' src/mongocxx/CMakeLists.txt
+        sed -i '/add_subdirectory(test)/d' src/bsoncxx/CMakeLists.txt
         
         # Правка проблемных файлов событий
         sed -i '/port() const/d' src/mongocxx/events/heartbeat_started_event.cpp
         sed -i '/port() const/d' src/mongocxx/events/heartbeat_failed_event.cpp
         
-        # Параметры для 32/64-битной сборки
         BUILD_FLAGS=""
         INSTALL_DIR="${GITHUB_WORKSPACE}/mongo-c-install"
         if [ "${{ matrix.arch }}" = "32" ]; then
@@ -123,34 +121,27 @@ jobs:
     
     - name: Create MongoDB directory structure for module
       run: |
-        # Создаем структуру директорий, требуемую для нашего модуля
         mkdir -p MongoDB/include
 
-        # Копируем заголовочные файлы
         cp -r mongo-c-install${{ matrix.arch }}/include/* MongoDB/include/
 
-        # Копирование заголовочных файлов MongoDB C++ Driver
-        cp -r mongo-cxx-driver-r3.6.7/include/mongocxx MongoDB/include/
-        cp -r mongo-cxx-driver-r3.6.7/include/bsoncxx MongoDB/include/
+        cp -r mongo-cxx-driver-r3.7.0/include/mongocxx MongoDB/include/
+        cp -r mongo-cxx-driver-r3.7.0/include/bsoncxx MongoDB/include/
 
-        # Создаем директории для библиотек в зависимости от архитектуры
         if [ "${{ matrix.arch }}" = "32" ]; then
           mkdir -p MongoDB/lib/linux
-          # Переименовываем библиотеки для соответствия нашей структуре проекта
           cp mongo-c-install32/lib/libmongoc-*.a MongoDB/lib/linux/libmongoc.a
           cp mongo-c-install32/lib/libbson-*.a MongoDB/lib/linux/libbson.a
-          cp mongo-cxx-driver-r3.6.7/build/src/mongocxx/libmongocxx.a MongoDB/lib/linux/
-          cp mongo-cxx-driver-r3.6.7/build/src/bsoncxx/libbsoncxx.a MongoDB/lib/linux/
+          cp mongo-cxx-driver-r3.7.0/build/src/mongocxx/libmongocxx.a MongoDB/lib/linux/
+          cp mongo-cxx-driver-r3.7.0/build/src/bsoncxx/libbsoncxx.a MongoDB/lib/linux/
         else
           mkdir -p MongoDB/lib64/linux
-          # Переименовываем библиотеки для соответствия нашей структуре проекта
           cp mongo-c-install64/lib/libmongoc-*.a MongoDB/lib64/linux/libmongoc.a
           cp mongo-c-install64/lib/libbson-*.a MongoDB/lib64/linux/libbson.a
-          cp mongo-cxx-driver-r3.6.7/build/src/mongocxx/libmongocxx.a MongoDB/lib64/linux/
-          cp mongo-cxx-driver-r3.6.7/build/src/bsoncxx/libbsoncxx.a MongoDB/lib64/linux/
+          cp mongo-cxx-driver-r3.7.0/build/src/mongocxx/libmongocxx.a MongoDB/lib64/linux/
+          cp mongo-cxx-driver-r3.7.0/build/src/bsoncxx/libbsoncxx.a MongoDB/lib64/linux/
         fi
     
-    # Фикс для проекта: определение статической переменной instance
     - name: Fix missing MongoDB instance definition
       run: |
         echo "// MongoDB static instance definition" > add_instance.cpp
@@ -163,7 +154,6 @@ jobs:
       run: |
         mkdir build && cd build
         
-        # Параметры для 32/64-битной сборки
         CMAKE_ARGS=""
         if [ "${{ matrix.arch }}" = "32" ]; then
           CMAKE_ARGS="-DCMAKE_CXX_FLAGS=-m32 -DCMAKE_C_FLAGS=-m32"
