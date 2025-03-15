@@ -29,9 +29,16 @@ jobs:
     
     - name: Install MongoDB C++ Driver dependencies
       run: |
+        sudo apt-get update
         sudo apt-get install -y libssl-dev libsasl2-dev
         if [ "${{ matrix.arch }}" = "32" ]; then
-          sudo apt-get install -y libssl-dev:i386 libsasl2-dev:i386
+          sudo dpkg --add-architecture i386
+          sudo apt-get update
+          sudo apt-get install -y \
+            libssl-dev:i386 \
+            libsasl2-dev:i386 \
+            libc6-dev-i386 \
+            libgcc-11-dev:i386
         fi
     
     - name: Download and build MongoDB C++ Driver
