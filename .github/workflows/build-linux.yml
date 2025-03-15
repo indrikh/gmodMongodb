@@ -84,9 +84,9 @@ jobs:
     - name: Download and build MongoDB C++ Driver
       run: |
         # Устанавливаем MongoDB C++ Driver
-        curl -L -O https://github.com/mongodb/mongo-cxx-driver/archive/refs/tags/r3.7.0.tar.gz
-        tar xzf r3.7.0.tar.gz
-        cd mongo-cxx-driver-r3.7.0
+        curl -L -O https://github.com/mongodb/mongo-cxx-driver/archive/refs/tags/r3.6.7.tar.gz
+        tar xzf r3.6.7.tar.gz
+        cd mongo-cxx-driver-r3.6.7
         
         # Параметры для 32/64-битной сборки
         BUILD_FLAGS=""
@@ -104,6 +104,8 @@ jobs:
           -DCMAKE_BUILD_TYPE=Release \
           -DCMAKE_PREFIX_PATH=${INSTALL_DIR} \
           -DCMAKE_INSTALL_PREFIX=${INSTALL_DIR} \
+          -DBUILD_TESTING=OFF \
+          -DBUILD_MOCK=OFF \
           ..
         
         make -j4
@@ -119,8 +121,8 @@ jobs:
         cp -r mongo-c-install${{ matrix.arch }}/include/* MongoDB/include/
 
         # Копирование заголовочных файлов MongoDB C++ Driver
-        cp -r mongo-cxx-driver-r3.7.0/include/mongocxx MongoDB/include/
-        cp -r mongo-cxx-driver-r3.7.0/include/bsoncxx MongoDB/include/
+        cp -r mongo-cxx-driver-r3.6.7/include/mongocxx MongoDB/include/
+        cp -r mongo-cxx-driver-r3.6.7/include/bsoncxx MongoDB/include/
 
         # Создаем директории для библиотек в зависимости от архитектуры
         if [ "${{ matrix.arch }}" = "32" ]; then
@@ -128,15 +130,15 @@ jobs:
           # Переименовываем библиотеки для соответствия нашей структуре проекта
           cp mongo-c-install32/lib/libmongoc-*.a MongoDB/lib/linux/libmongoc.a
           cp mongo-c-install32/lib/libbson-*.a MongoDB/lib/linux/libbson.a
-          cp mongo-cxx-driver-r3.7.0/build/src/mongocxx/libmongocxx.a MongoDB/lib/linux/
-          cp mongo-cxx-driver-r3.7.0/build/src/bsoncxx/libbsoncxx.a MongoDB/lib/linux/
+          cp mongo-cxx-driver-r3.6.7/build/src/mongocxx/libmongocxx.a MongoDB/lib/linux/
+          cp mongo-cxx-driver-r3.6.7/build/src/bsoncxx/libbsoncxx.a MongoDB/lib/linux/
         else
           mkdir -p MongoDB/lib64/linux
           # Переименовываем библиотеки для соответствия нашей структуре проекта
           cp mongo-c-install64/lib/libmongoc-*.a MongoDB/lib64/linux/libmongoc.a
           cp mongo-c-install64/lib/libbson-*.a MongoDB/lib64/linux/libbson.a
-          cp mongo-cxx-driver-r3.7.0/build/src/mongocxx/libmongocxx.a MongoDB/lib64/linux/
-          cp mongo-cxx-driver-r3.7.0/build/src/bsoncxx/libbsoncxx.a MongoDB/lib64/linux/
+          cp mongo-cxx-driver-r3.6.7/build/src/mongocxx/libmongocxx.a MongoDB/lib64/linux/
+          cp mongo-cxx-driver-r3.6.7/build/src/bsoncxx/libbsoncxx.a MongoDB/lib64/linux/
         fi
     
     # Фикс для проекта: определение статической переменной instance
