@@ -27,20 +27,29 @@ jobs:
           sudo apt-get install -y gcc-multilib g++-multilib
         fi
     
-    - name: Install MongoDB C++ Driver dependencies
+    - name: Install build dependencies
       run: |
         sudo apt-get update
-        sudo apt-get install -y libssl-dev libsasl2-dev
+        sudo apt-get install -y \
+          cmake \
+          build-essential \
+          libssl-dev \
+          libsasl2-dev \
+          zlib1g-dev \
+          pkg-config
+
+        # Для 32-битной сборки
         if [ "${{ matrix.arch }}" = "32" ]; then
           sudo dpkg --add-architecture i386
           sudo apt-get update
           sudo apt-get install -y \
+            gcc-multilib \
+            g++-multilib \
             libssl-dev:i386 \
             libsasl2-dev:i386 \
-            libc6-dev-i386 \
-            libgcc-11-dev:i386
+            zlib1g-dev:i386
         fi
-    
+
     - name: Download and build MongoDB C++ Driver
       run: |
         # Устанавливаем MongoDB C Driver
@@ -48,35 +57,38 @@ jobs:
         tar xzf mongo-c-driver-1.23.1.tar.gz
         cd mongo-c-driver-1.23.1
 
-        # Временно отключаем проблемные компоненты
+        # Отключаем проблемную загрузку криптографических компонентов
         sed -i 's/get-crypt_shared//' CMakeLists.txt
-        
+
         # Параметры для 32/64-битной сборки
         BUILD_FLAGS=""
         INSTALL_DIR="${GITHUB_WORKSPACE}/mongo-c-install"
         if [ "${{ matrix.arch }}" = "32" ]; then
           BUILD_FLAGS="-DCMAKE_C_FLAGS=-m32 -DCMAKE_CXX_FLAGS=-m32"
           INSTALL_DIR="${INSTALL_DIR}32"
+          export PKG_CONFIG_PATH=/usr/lib/i386-linux-gnu/pkgconfig
         else
           INSTALL_DIR="${INSTALL_DIR}64"
         fi
-        
+
         mkdir cmake-build && cd cmake-build
         cmake ${BUILD_FLAGS} \
           -DENABLE_AUTOMATIC_INIT_AND_CLEANUP=OFF \
           -DCMAKE_INSTALL_PREFIX=${INSTALL_DIR} \
           -DCMAKE_BUILD_TYPE=Release \
-          -DCMAKE_POLICY_DEFAULT_CMP0075=NEW \
+          -DENABLE_MONGOC=ON \
+          -DENABLE_BSON=ON \
+          -DENABLE_TESTS=OFF \
+          -DENABLE_EXAMPLES=OFF \
+          -DENABLE_EXTRA_ALIGNMENT=OFF \
           ..
-        
-        # Добавляем обработку ошибок
+
         make -j4 || { 
-          echo "Build failed. Showing CMake logs:";
-          cat CMakeFiles/CMakeOutput.log;
+          echo "Build failed. Showing configuration:";
           cat CMakeFiles/CMakeError.log;
           exit 1;
         }
-        
+
         make install
         cd ../..
     
