@@ -30,6 +30,9 @@ jobs:
     - name: Install MongoDB C++ Driver dependencies
       run: |
         sudo apt-get install -y libssl-dev libsasl2-dev
+        if [ "${{ matrix.arch }}" = "32" ]; then
+          sudo apt-get install -y libssl-dev:i386 libsasl2-dev:i386
+        fi
     
     - name: Download and build MongoDB C++ Driver
       run: |
@@ -80,17 +83,28 @@ jobs:
         # Создаем директории для библиотек в зависимости от архитектуры
         if [ "${{ matrix.arch }}" = "32" ]; then
           mkdir -p MongoDB/lib/linux
-          cp mongo-c-install32/lib/libmongoc-*.a MongoDB/lib/linux/
-          cp mongo-c-install32/lib/libbson-*.a MongoDB/lib/linux/
+          # Переименовываем библиотеки для соответствия нашей структуре проекта
+          cp mongo-c-install32/lib/libmongoc-*.a MongoDB/lib/linux/libmongoc.a
+          cp mongo-c-install32/lib/libbson-*.a MongoDB/lib/linux/libbson.a
           cp mongo-c-install32/lib/libmongocxx.a MongoDB/lib/linux/
           cp mongo-c-install32/lib/libbsoncxx.a MongoDB/lib/linux/
         else
           mkdir -p MongoDB/lib64/linux
-          cp mongo-c-install64/lib/libmongoc-*.a MongoDB/lib64/linux/
-          cp mongo-c-install64/lib/libbson-*.a MongoDB/lib64/linux/
+          # Переименовываем библиотеки для соответствия нашей структуре проекта
+          cp mongo-c-install64/lib/libmongoc-*.a MongoDB/lib64/linux/libmongoc.a
+          cp mongo-c-install64/lib/libbson-*.a MongoDB/lib64/linux/libbson.a
           cp mongo-c-install64/lib/libmongocxx.a MongoDB/lib64/linux/
           cp mongo-c-install64/lib/libbsoncxx.a MongoDB/lib64/linux/
         fi
+    
+    # Фикс для проекта: определение статической переменной instance
+    - name: Fix missing MongoDB instance definition
+      run: |
+        echo "// MongoDB static instance definition" > add_instance.cpp
+        echo "#include \"src/mongodb/Database.h\"" >> add_instance.cpp
+        echo "mongocxx::instance Database::m_instance = {};" >> add_instance.cpp
+        mkdir -p src/mongodb
+        mv add_instance.cpp src/mongodb/
     
     - name: Build gmodMongodb module
       run: |
@@ -103,7 +117,7 @@ jobs:
         fi
         
         cmake ${CMAKE_ARGS} -DCMAKE_BUILD_TYPE=Release ..
-        make -j4
+        make -j4 VERBOSE=1
     
     - name: Upload Linux binaries
       uses: actions/upload-artifact@v3
