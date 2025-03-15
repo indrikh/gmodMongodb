@@ -47,6 +47,9 @@ jobs:
         curl -L -O https://github.com/mongodb/mongo-c-driver/releases/download/1.23.1/mongo-c-driver-1.23.1.tar.gz
         tar xzf mongo-c-driver-1.23.1.tar.gz
         cd mongo-c-driver-1.23.1
+
+        # Временно отключаем проблемные компоненты
+        sed -i 's/get-crypt_shared//' CMakeLists.txt
         
         # Параметры для 32/64-битной сборки
         BUILD_FLAGS=""
@@ -59,21 +62,21 @@ jobs:
         fi
         
         mkdir cmake-build && cd cmake-build
-        cmake ${BUILD_FLAGS} -DENABLE_AUTOMATIC_INIT_AND_CLEANUP=OFF -DCMAKE_INSTALL_PREFIX=${INSTALL_DIR} -DCMAKE_BUILD_TYPE=Release ..
-        make -j4
-        make install
-        cd ../..
+        cmake ${BUILD_FLAGS} \
+          -DENABLE_AUTOMATIC_INIT_AND_CLEANUP=OFF \
+          -DCMAKE_INSTALL_PREFIX=${INSTALL_DIR} \
+          -DCMAKE_BUILD_TYPE=Release \
+          -DCMAKE_POLICY_DEFAULT_CMP0075=NEW \
+          ..
         
-        # Устанавливаем MongoDB C++ Driver
-        curl -L -O https://github.com/mongodb/mongo-cxx-driver/archive/refs/tags/r3.7.0.tar.gz
-        tar xzf r3.7.0.tar.gz
-        cd mongo-cxx-driver-r3.7.0
+        # Добавляем обработку ошибок
+        make -j4 || { 
+          echo "Build failed. Showing CMake logs:";
+          cat CMakeFiles/CMakeOutput.log;
+          cat CMakeFiles/CMakeError.log;
+          exit 1;
+        }
         
-        mkdir cmake-build && cd cmake-build
-        
-        # Путь к установленному MongoDB C Driver
-        cmake ${BUILD_FLAGS} -DCMAKE_CXX_STANDARD=14 -DCMAKE_BUILD_TYPE=Release -DCMAKE_PREFIX_PATH=${INSTALL_DIR} -DCMAKE_INSTALL_PREFIX=${INSTALL_DIR} ..
-        make -j4
         make install
         cd ../..
     
